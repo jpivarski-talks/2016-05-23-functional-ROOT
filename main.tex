@@ -59,10 +59,10 @@
   morestring=[b]"""
 }
 
-\title[Your Short Title]{Your Presentation}
-\author{You}
-\institute{Where You're From -- DIANA}
-\date{Date of Presentation}
+\title[2016-05-23-functional-ROOT]{Chains of functional primitives}
+\author{Jim Pivarski}
+\institute{Princeton University -- DIANA}
+\date{May 23, 2016}
 
 \begin{document}
 
@@ -79,95 +79,37 @@
 %  \tableofcontents
 %\end{frame}
 
-\section{Introduction}
+\begin{frame}[fragile]{Many ways to write a loop}
 
-\begin{frame}{Introduction}
+\begin{columns}
+\column{0.49\linewidth}
+\begin{lstlisting}[language=fortran, basicstyle=\ttfamily\scriptsize, frame=single]
+      I = 0
+ 100  I = I + 1
+      IF (I .GT. NEVENT) THEN
+          GO TO 200
+      EVENT = EVENTS(I)
+      IF (CONDIT(EVENT)) THEN
+          GO TO 100
+      OUTPUT(I) = CALCUL(EVENT)
+      GO TO 100
+ 200  ! ...
+\end{lstlisting}
 
-\begin{itemize}
-  \item Your introduction goes here!
-  \item Use \texttt{itemize} to organize your main points.
-\end{itemize}
-
-\vskip 1cm
-
-\begin{block}{Examples}
-Some examples of commonly used commands and features are included, to help you get started.
-\end{block}
-
-\end{frame}
-
-\section{Some \LaTeX{} Examples}
-
-\subsection{Tables and Figures}
-
-\begin{frame}{Tables and Figures}
-
-\begin{itemize}
-\item Use \texttt{tabular} for basic tables --- see Table~\ref{tab:widgets}, for example.
-\item You can upload a figure (JPEG, PNG or PDF) using the files menu. 
-\item To include it in your document, use the \texttt{includegraphics} command (see the comment below in the source code).
-\end{itemize}
-
-% Commands to include a figure:
-%\begin{figure}
-%\includegraphics[width=\textwidth]{your-figure's-file-name}
-%\caption{\label{fig:your-figure}Caption goes here.}
-%\end{figure}
-
-\begin{table}
-\centering
-\begin{tabular}{l|r}
-Item & Quantity \\\hline
-Widgets & 42 \\
-Gadgets & 13
-\end{tabular}
-\caption{\label{tab:widgets}An example table.}
-\end{table}
-
-\end{frame}
-
-\subsection{Mathematics}
-
-\begin{frame}{Readable Mathematics}
-
-Let $X_1, X_2, \ldots, X_n$ be a sequence of independent and identically distributed random variables with $\text{E}[X_i] = \mu$ and $\text{Var}[X_i] = \sigma^2 < \infty$, and let
-$$S_n = \frac{X_1 + X_2 + \cdots + X_n}{n}
-      = \frac{1}{n}\sum_{i}^{n} X_i$$
-denote their mean. Then as $n$ approaches infinity, the random variables $\sqrt{n}(S_n - \mu)$ converge in distribution to a normal $\mathcal{N}(0, \sigma^2)$.
-
-\end{frame}
-
-\subsection{Code}
-
-\begin{frame}[fragile]{Readable Code}
-
-\vspace{0.5 cm}
-
-Remember to mark the frame as ``fragile'' for verbatim.
-
-\begin{lstlisting}[language=c, frame=single]
-auto output = std::vector<Result>();
-for (i = 0;  i < nEvents;  i++) {   // C++ code!
-    event = events(i);
-    if (condition(event))
-        continue;
-    output.push_back(calculation(event));
+\column{0.52\linewidth}
+\begin{lstlisting}[language=c, basicstyle=\ttfamily\scriptsize, frame=single]
+for (i = 0;  i < nEvents;  i++) {
+  event = events[i];
+  if (condition(event))
+    continue;
+  output[i] = calculation(event);
 }
 \end{lstlisting}
+\end{columns}
 
-\begin{lstlisting}[language=python, frame=single]
-output = []                         # Python code!
-for event in events:
-    if condition(event):
-        continue
-    output.append(calculation(event))
+\begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize, frame=single]
+val output = events.filter(condition).map(calculation)
 \end{lstlisting}
-
-\begin{lstlisting}[language=scala, frame=single]
-val output: Seq[Result] =           // Scala code!
-  events.filter(condition).map(calculation)
-\end{lstlisting}
-
 \end{frame}
 
 \end{document}
