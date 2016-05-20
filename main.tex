@@ -23,6 +23,7 @@
 \usepackage{tikz}
 \usepackage{listings}
 \usepackage{courier}
+\usepackage{array}
 
 \xdefinecolor{darkblue}{rgb}{0.1,0.1,0.7}
 \xdefinecolor{dianablue}{rgb}{0.18,0.24,0.31}
@@ -80,35 +81,361 @@
 %\end{frame}
 
 \begin{frame}[fragile]{Many ways to write a loop}
-
 \begin{columns}
 \column{0.49\linewidth}
 \begin{lstlisting}[language=fortran, basicstyle=\ttfamily\scriptsize, frame=single]
       I = 0
+      J = 0
  100  I = I + 1
       IF (I .GT. NEVENT) THEN
           GO TO 200
       EVENT = EVENTS(I)
       IF (CONDIT(EVENT)) THEN
           GO TO 100
-      OUTPUT(I) = CALCUL(EVENT)
+      J = J + 1
+      OUTPUT(J) = CALCUL(EVENT)
       GO TO 100
  200  ! ...
 \end{lstlisting}
 
 \column{0.52\linewidth}
+\vspace{3 cm}
 \begin{lstlisting}[language=c, basicstyle=\ttfamily\scriptsize, frame=single]
 for (i = 0;  i < nEvents;  i++) {
-  event = events[i];
-  if (condition(event))
-    continue;
-  output[i] = calculation(event);
+    event = events[i];
+    if (condition(event))
+        continue;
+    output.push_back(
+        calculation(event));
 }
 \end{lstlisting}
 \end{columns}
 
+\vspace{0.5 cm}
+
+\begin{minipage}[fragile]{0.85\linewidth}
 \begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize, frame=single]
 val output = events.filter(condition).map(calculation)
+\end{lstlisting}
+\end{minipage}
+
+\uncover<2>{``{\small\tt condition}'' and ``{\small\tt calculation}'' are user-defined functions passed as arguments to ``{\small\tt filter}'' and ``{\small\tt map}.''}
+\end{frame}
+
+\begin{frame}[fragile]{Restricting the language}
+\vfill
+``Go to'' statements allowed extreme flexibility in program flow, usually too much, adding unwanted complexity.
+
+\vfill
+\begin{uncoverenv}<2->
+Flow control statements ({\small\tt if}, {\small\tt for}) also provide more power than is often needed.
+
+\vfill
+\begin{columns}
+\column{0.58\linewidth}
+\begin{lstlisting}[language=c, basicstyle=\ttfamily\scriptsize]
+for (i = 0;  i < nEvents;  i++) {
+    event = events[i];
+    if (condition(event))
+        continue;
+    output.push_back(
+        calculation(event));
+}
+\end{lstlisting}
+
+\column{0.42\linewidth}
+\begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize]
+
+
+val output = events.
+      filter(condition).
+      map(calculation)
+
+
+\end{lstlisting}
+\end{columns}
+\end{uncoverenv}
+
+\vfill
+\begin{uncoverenv}<3->
+The map/filter functional chain {\it says less} than the for loop.
+
+\small\textcolor{darkgray}{
+\begin{columns}
+\column{0.58\linewidth}
+``Step through the events {\it in order,} skip if the condition is met, and {\it incrementally grow the output list.}''
+\column{0.42\linewidth}
+``Remove events for which the condition holds and apply the calculation to the remainder.''
+\end{columns}}
+\end{uncoverenv}
+\end{frame}
+
+\begin{frame}[fragile]{Why restrict capabilities?}
+\vspace{0.5 cm}
+\begin{columns}
+\column{0.58\linewidth}
+\begin{lstlisting}[language=c, basicstyle=\ttfamily\scriptsize]
+for (i = 0;  i < nEvents;  i++) {
+    event = events[i];
+    if (condition(event))
+        continue;
+    output.push_back(
+        calculation(event));
+}
+\end{lstlisting}
+
+\column{0.42\linewidth}
+\begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize]
+
+
+val output = events.
+      filter(condition).
+      map(calculation)
+
+
+\end{lstlisting}
+\end{columns}
+
+\begin{itemize}
+\item The for loop body could have operated on multiple events at once, but didn't in this case. The map functional cannot ever. Compilers and runtime environments can take advantage of this knowledge for vectorization or parallelization.
+
+\item<2-> Left: {\small\tt output.push\_back} doesn't know how large the output can be and has to dynamically allocate. \\ Right: {\small\tt output.size <= events.size}; allocate and trim.
+
+\item<3-> To repartition the for loop, the user must be involved in the index arithmetic; the functionals are more abstract.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{}
+\vspace{1.2 cm}
+\begin{minipage}[fragile]{0.85\linewidth}
+\begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize, frame=single]
+val output = events.filter(condition).map(calculation)
+\end{lstlisting}
+\end{minipage}
+
+could mean
+
+\begin{itemize}
+\item Generate inline code for {\small\tt condition} and {\small\tt calculation} and vectorize the calculation.
+\item Evaluate them in a thread execution pool.
+\item Launch parallel jobs on a worldwide grid.
+\item Construct a CUDA kernel and pass {\small\tt condition} and {\small\tt calculation} to the GPU.
+\item Construct an intermediate list after {\small\tt filter} and before {\small\tt map}.
+\item Lazy-evaluate the {\small\tt filter}, treating it like a Python iterator (no intermediate list).
+\end{itemize}
+
+Although these choices have significant performance consequences, they are secondary to the intention expressed in that line of code.
+\end{frame}
+
+\begin{frame}{Not just for LISP programmers}
+\vspace{0.5 cm}
+This style is fairly common among data analysts:
+
+\begin{itemize}
+\item R code is full of {\small\tt apply/lapply/tapply}, and the R users I know try to avoid for loops whenever possible.
+\item ``Map-reduce'' launched an industry around Hadoop, and functional chains are the central paradigm of Spark.
+\item Functional primitives are hidden in the {\small\tt SELECT}, {\small\tt WHERE}, and {\small\tt GROUP BY}, clauses of SQL.
+\item LINQ, the data extraction sublanguage of .NET, is heavily functional.
+\item d3, a popular visualization library for Javascript, also manipulates data with functional chains.
+\end{itemize}
+
+Although it restricts flexibility, this paradigm seems to fit data analysis well.
+\end{frame}
+
+\begin{frame}{}
+Switching to this paradigm requires the user to become familiar with some functional primitives.
+\begin{itemize}
+\item Adopt the ``there's an app for that'' mentality.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Transforming one table into another}
+\vfill
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{p{0.12\linewidth} >{\centering}p{0.08\linewidth} >{\centering}p{0.17\linewidth} >{\centering}p{0.08\linewidth} p{0.4\linewidth}}
+& input & function & output & operation \\\hline
+\textcolor{darkblue}{map} & table of $A$ & $f: A \to B$ & table of $B$ & apply $f$ to each row $A$, get a table of the same number of rows $B$ \\
+& \multicolumn{4}{l}{\scriptsize \color{gray} a.k.a. ``lapply'' (R), ``SELECT'' (SQL), list comprehension (Python)} \\\hline
+\textcolor{darkblue}{filter} & table of $A$ & $f: A \to \mbox{boolean}$ & table of $A$ & get a shorter table with the same type of rows \\
+& \multicolumn{4}{l}{\scriptsize \color{gray} a.k.a. single brackets (R), ``WHERE'' (SQL), list comprehension (Python)} \\\hline
+\textcolor{darkblue}{flatMap} & table of $A$ & $f: A \to \mbox{table of } B$ & table of $B$ & compose \textcolor{darkblue}{map} and \textcolor{darkblue}{flatten}, get a table of any length \\
+& \multicolumn{4}{l}{\scriptsize \color{gray} a.k.a. ``map'' (Hadoop), ``EXPLODE'' (SQL), $>>=$ (Haskell)} \\
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Summarizing a table with a counter}
+\vspace{0.5 cm}
+\renewcommand{\arraystretch}{1.5}
+\begin{tabular}{p{0.12\linewidth} >{\centering}p{0.2\linewidth} >{\centering}p{0.23\linewidth} >{\centering}p{0.08\linewidth} >{\raggedright\arraybackslash}p{0.25\linewidth}}
+& input & function(s) & output & operation \\\hline
+\textcolor{darkblue}{reduce} & table of $A$ & $f: (A, A) \to A$ & single value $A$ & apply $f$ to the running sum and one more element \\\hline
+\textcolor{darkblue}{aggregate} & table of $A$, initial value $B$ (``zero'') & $f: (A, B) \to B$ $f: (B, B) \to B$ (increment and combine) & single value $B$ & accumulate a counter with a different data type from the input \\\hline
+\textcolor{darkblue}{aggregate by key} & table of $\langle K,A \rangle$, initial value $B$ & $f: (A, B) \to B$ $f: (B, B) \to B$ & pairs $\langle K,B \rangle$ & aggregate independently for each key \\
+& \multicolumn{4}{l}{\scriptsize \color{gray} a.k.a. ``reduce'' (Hadoop), ``GROUP BY'' (SQL)} \\
+\end{tabular}
+\end{frame}
+
+\begin{frame}[fragile]{What if I want to mix events?}
+More exotic functionals can handle specific cases.
+
+\vfill
+For instance,
+\begin{itemize}
+\item {\small\tt collection.skip(n)} to offset a collection by {\small\tt n}
+\item {\small\tt zip(collections*)} to walk through collections in lock-step
+\end{itemize}
+can be combined to compare an event with the previous event:
+
+\begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize, frame=single]
+       zip(events, events.skip(1)).map(operation_on_pairs)
+\end{lstlisting}
+
+\vfill
+Or perform nested loops:
+\begin{itemize}
+\item {\small\tt cartesian} to loop over all pairs $i$, $j$ of a collection
+\item {\small\tt triangular} to loop over pairs $i$, $j \ge i$ of a collection
+\end{itemize}
+
+\vfill
+Each case would have to be optimized differently, anyway.
+\end{frame}
+
+\begin{frame}[fragile]{Histogrammar}
+\vspace{0.5 cm}
+This is very similar to what I'm doing with Histogrammar (\textcolor{blue}{\small \url{https://github.com/diana-hep/histogrammar}}), which introduces a dozen functional primitives that are all variations on aggregate.
+
+\vfill
+\begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize]
+histogram = Bin(100, 0, 20, fill_rule, Count())
+
+hist2d = Bin(binsX, lowX, highX, fillX,
+           Bin(binsY, lowY, highY, fillY, Count()))
+
+profile = Bin(binsX, lowX, highX, fillX, Deviate(fillY))
+
+box_whiskers = Bin(binsX, lowX, highX, fillX, Branch(
+  Minimize(fillY), Quantile(0.25, fillY), Quantile(0.5, fillY),
+    Quantile(0.75, fillY), Maximize(fillY)))
+
+unknown_support = SparselyBin(binWidth, fillX, Count())
+
+efficiency = Fraction(cut, Bin(100, 0, 20, fill_rule, Count()))
+\end{lstlisting}
+
+where all {\small\tt fill\_rules} are lambda functions.
+\end{frame}
+
+\begin{frame}[fragile]{Lambda functions}
+\vspace{0.5 cm}
+To be fluent, one needs a good syntax for lambdas.
+
+\vspace{0.25 cm}
+\renewcommand{\baselinestretch}{2}
+\begin{tabular}{l l}
+C++ & \begin{lstlisting}[language=c, basicstyle=\ttfamily\scriptsize]
+[](Datum d){return sqrt(d.px*d.px + d.py*d.py);}
+\end{lstlisting} \\
+
+Scala & \begin{lstlisting}[language=scala, basicstyle=\ttfamily\scriptsize]
+{d: Datum => Math.sqrt(d.px*d.px + d.py*d.py)}
+\end{lstlisting} \\
+
+Python & \begin{lstlisting}[language=python, basicstyle=\ttfamily\scriptsize]
+lambda d: math.sqrt(d.px**2 + d.py**2)
+\end{lstlisting} \\
+
+R & \begin{lstlisting}[language=r, basicstyle=\ttfamily\scriptsize]
+function (d) { sqrt(d.px^2 + d.py^2) }
+\end{lstlisting}
+\end{tabular}
+\renewcommand{\baselinestretch}{1}
+\end{frame}
+
+\begin{frame}[fragile]{Lambda functions}
+\vspace{0.25 cm}
+Unlike all the rest, Python lambdas are fundamentally limited to one-line expressions (no statements, such as local assignment).
+
+\vfill
+I have some code (written in Python) that extends Python's grammar to include multiline assignments like this:
+
+\vfill
+\begin{columns}
+\column{0.53\linewidth}
+\begin{lstlisting}[language=python, basicstyle=\ttfamily\scriptsize, frame=single]
+lambda d: sqrt(d.px**2 + d.py**2)
+
+def(d -> sqrt(d.px**2 + d.py**2))
+\end{lstlisting}
+\column{0.33\linewidth}
+\begin{lstlisting}[language=python, basicstyle=\ttfamily\scriptsize, frame=single]
+def(x -> y = sqrt(x),
+         z = 2*y,
+         z**2)
+\end{lstlisting}
+\end{columns}
+
+\vfill
+or even
+
+\vfill
+\begin{columns}
+\column{0.43\linewidth}
+\begin{lstlisting}[language=python, basicstyle=\ttfamily\scriptsize, frame=single]
+def(x -> y = sqrt(x),
+         z = 2*y if y < 1,
+             3*y if y < 2,
+             4*y else,
+         z**2)
+\end{lstlisting}
+\end{columns}
+
+\vfill
+which might be useful for extended functionals in Python.
+\end{frame}
+
+\begin{frame}[fragile]{Suite of examples}
+\vspace{0.5 cm}
+I also have a suite of functional primitives with na\"ive implementations in the attached {\tt\small functional\_chains.py}.
+
+\vspace{0.25 cm}
+\begin{lstlisting}[language=python, basicstyle=\ttfamily\scriptsize]
+class Data(object):
+    def __init__(self, generator):
+        self.generator = generator
+
+    def map(self, fcn):
+        return Data(fcn(x) for x in self.generator)
+
+    def filter(self, fcn):
+        return Data(x for x in self.generator if fcn(x))
+
+    def flatMap(self, fcn):
+        return Data(itertools.chain.from_iterable(fcn(x) for x in self.generator))
+
+    ...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Suite of examples}
+\vspace{0.5 cm}
+...with comparisons to {\tt\small TTree.Draw} strings in PyROOT.
+
+\vspace{0.25 cm}
+\begin{lstlisting}[language=python, basicstyle=\ttfamily\scriptsize]
+ttree.Draw("fTracks.fPx >> hPx")
+assert Data.source().flatMap(lambda event: event.fTracks).
+         map(lambda track: track.fPx).verify("hPx")
+
+ttree.Draw("fMatrix[][0] >> hMatrix0")
+assert Data.source().flatMap(lambda _: _.fMatrix[:,0]).
+         verify("hMatrix0")
+
+ttree.Draw("fTemperature - 20 * Alt$(fClosestDistance[9], 0) " +
+           ">> hClosestDistanceAlt")
+assert Data.source().filterMap(lambda _: _.fTemperature - 20 *
+         _.fClosestDistance.getOrElse(9, 0.0)).
+         verify("hClosestDistanceAlt")
 \end{lstlisting}
 \end{frame}
 
